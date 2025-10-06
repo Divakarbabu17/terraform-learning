@@ -4,6 +4,16 @@ variable "rotate" {
   default = false  
 }
 
+variable "swap" {
+  type = bool
+  default = false
+  validation {
+    condition = !(var.swap && var.rotate )
+    error_message = "swap and rotation cannot be set at the same time. "
+  
+  }
+  
+}
 variable "passwordlength" {
   type = number
   default = 16
@@ -12,9 +22,7 @@ variable "passwordlength" {
 resource "random_password" "activepassword" {
   length =  var.passwordlength
   special = true
-  keepers = {
-    
-  }
+ 
 }
 
 resource "random_password" "backup_password" {
@@ -27,13 +35,14 @@ resource "random_password" "backup_password" {
 }
 
 locals {
-  activepassword = random_password.activepassword.result
+  activepassword = var.swap ? random_password.backup_password.result : random_password.activepassword.result
+  backup_password = var.swap ? random_password.activepassword.result: random_password.backup_password.result  
 }
 
 resource "local_file" "password_output" {
   content  = jsonencode({
-    activepassword = random_password.activepassword.result
-    backup_password = random_password.backup_password.result
+    activepassword = local.activepassword
+    backup_password = local.backup_password
   })
   filename = "${path.module}/result.json"
 }
